@@ -155,9 +155,6 @@ int main()
         ID3D11DeviceContext* baseDeviceContext;
         D3D_FEATURE_LEVEL featureLevels[] = { D3D_FEATURE_LEVEL_11_0 };
         UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-#if defined(DEBUG_BUILD)
-        creationFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
 
         HRESULT hResult = D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE,
             0, creationFlags,
@@ -178,23 +175,6 @@ int main()
         assert(SUCCEEDED(hResult));
         baseDeviceContext->Release();
     }
-
-#ifdef DEBUG_BUILD
-    // Set up debug layer to break on D3D11 errors
-    ID3D11Debug* d3dDebug = nullptr;
-    d3d11Device->QueryInterface(__uuidof(ID3D11Debug), (void**)&d3dDebug);
-    if (d3dDebug)
-    {
-        ID3D11InfoQueue* d3dInfoQueue = nullptr;
-        if (SUCCEEDED(d3dDebug->QueryInterface(__uuidof(ID3D11InfoQueue), (void**)&d3dInfoQueue)))
-        {
-            d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, true);
-            d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, true);
-            d3dInfoQueue->Release();
-        }
-        d3dDebug->Release();
-    }
-#endif
 
     // Create Swap Chain
     IDXGISwapChain1* d3d11SwapChain;
@@ -576,6 +556,20 @@ int main()
         d3d11DeviceContext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R16_UINT, 0);
 
         d3d11DeviceContext->DrawIndexed(numIndices, 0, 0);
+
+        // now draw another cube for reference
+        // put default look matrix
+        modelViewProj = translationMat(float3{ 0, -6, 0 }) * scaleMat(float3{5,0.2f,5}) * viewMat * perspectiveMat;
+        // Update constant buffer
+        D3D11_MAPPED_SUBRESOURCE mappedSubresource2;
+        d3d11DeviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource2);
+        constants = (Constants*)(mappedSubresource2.pData);
+        constants->modelViewProj = modelViewProj;
+        d3d11DeviceContext->Unmap(constantBuffer, 0);
+
+        d3d11DeviceContext->DrawIndexed(numIndices, 0, 0);
+
+
 
         d3d11SwapChain->Present(1, 0);
     }

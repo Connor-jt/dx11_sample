@@ -106,6 +106,15 @@ inline float4x4 translationMat(float3 trans)
         0, 0, 0, 1
     };
 }
+inline float4x4 scaleMat(float3 scale)
+{
+    return {
+        scale.x, 0, 0, 0,
+        0, scale.y, 0, 0,
+        0, 0, scale.z, 0,
+        0, 0, 0, 1
+    };
+}
 
 inline float4x4 makePerspectiveMat(float aspectRatio, float fovYRadians, float zNear, float zFar)
 {
