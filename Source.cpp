@@ -559,7 +559,7 @@ int main()
 
         // now draw another cube for reference
         // put default look matrix
-        modelViewProj = translationMat(float3{ 0, -6, 0 }) * scaleMat(float3{5,0.2f,5}) * viewMat * perspectiveMat;
+        modelViewProj = scaleMat(float3{5,0.2f,5}) * translationMat(float3{ 0, -2, 0 }) * viewMat * perspectiveMat;
         // Update constant buffer
         D3D11_MAPPED_SUBRESOURCE mappedSubresource2;
         d3d11DeviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource2);
