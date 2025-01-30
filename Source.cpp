@@ -29,6 +29,10 @@ enum GameAction {
     GameActionCount
 };
 static bool global_keyIsDown[GameActionCount] = {};
+// Create Constant Buffer
+struct Constants{
+    float4x4 modelViewProj;
+};
 
 bool win32CreateD3D11RenderTargets(ID3D11Device1* d3d11Device, IDXGISwapChain1* swapChain, ID3D11RenderTargetView** d3d11FrameBufferView, ID3D11DepthStencilView** depthBufferView)
 {
@@ -226,18 +230,12 @@ int main()
     ID3D11DepthStencilView* depthBufferView;
     win32CreateD3D11RenderTargets(d3d11Device, d3d11SwapChain, &d3d11FrameBufferView, &depthBufferView);
 
-    UINT shaderCompileFlags = 0;
-    // Compiling with this flag allows debugging shaders with Visual Studio
-#if defined(DEBUG_BUILD)
-    shaderCompileFlags |= D3DCOMPILE_DEBUG;
-#endif
-
     // Create Vertex Shader
     ID3DBlob* vsBlob;
     ID3D11VertexShader* vertexShader;
     {
         ID3DBlob* shaderCompileErrorsBlob;
-        HRESULT hResult = D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "vs_main", "vs_5_0", shaderCompileFlags, 0, &vsBlob, &shaderCompileErrorsBlob);
+        HRESULT hResult = D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "vs_main", "vs_5_0", 0, 0, &vsBlob, &shaderCompileErrorsBlob);
         if (FAILED(hResult))
         {
             const char* errorString = NULL;
@@ -260,7 +258,7 @@ int main()
     {
         ID3DBlob* psBlob;
         ID3DBlob* shaderCompileErrorsBlob;
-        HRESULT hResult = D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "ps_main", "ps_5_0", shaderCompileFlags, 0, &psBlob, &shaderCompileErrorsBlob);
+        HRESULT hResult = D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "ps_main", "ps_5_0", 0, 0, &psBlob, &shaderCompileErrorsBlob);
         if (FAILED(hResult))
         {
             const char* errorString = NULL;
@@ -351,11 +349,6 @@ int main()
         assert(SUCCEEDED(hResult));
     }
 
-    // Create Constant Buffer
-    struct Constants
-    {
-        float4x4 modelViewProj;
-    };
 
     ID3D11Buffer* constantBuffer;
     {
@@ -575,4 +568,57 @@ int main()
     }
 
     return 0;
+}
+/*
+
+d3d11DeviceContext->VSSetShader(vertexShader, nullptr, 0);
+d3d11DeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
+d3d11SwapChain->Present // render hook
+
+*/
+
+void injected_init(ID3D11DeviceContext1* d3d11DeviceContext) {
+
+}
+
+void injected_render(ID3D11DeviceContext1* d3d11DeviceContext) {
+    // if hasn't run yet, then initialize
+    injected_init(d3d11DeviceContext);
+
+
+
+    // Calculate view matrix from camera data
+    float4x4 viewMat = translationMat(-cameraPos) * rotateYMat(-cameraYaw) * rotateXMat(-cameraPitch);
+
+    // Spin the cube
+    float4x4 modelMat = scaleMat(float3{ 0.5f, 0.5f, 0.5f }) * translationMat(float3{ 1, 1, 1 });
+
+    // Calculate model-view-projection matrix to send to shader
+    float4x4 modelViewProj = modelMat * viewMat * perspectiveMat;
+
+    // TODO: load texture to draw onto cube??
+
+    // Update constant buffer
+    D3D11_MAPPED_SUBRESOURCE mappedSubresource;
+    d3d11DeviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
+    Constants* constants = (Constants*)(mappedSubresource.pData);
+    constants->modelViewProj = modelViewProj;
+    d3d11DeviceContext->Unmap(constantBuffer, 0);
+
+    d3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    d3d11DeviceContext->IASetInputLayout(inputLayout);
+
+    d3d11DeviceContext->VSSetShader(vertexShader, nullptr, 0);
+    d3d11DeviceContext->PSSetShader(pixelShader, nullptr, 0);
+
+    d3d11DeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
+
+    d3d11DeviceContext->PSSetShaderResources(0, 1, &textureView);
+    d3d11DeviceContext->PSSetSamplers(0, 1, &samplerState);
+
+    d3d11DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+    d3d11DeviceContext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R16_UINT, 0);
+
+    d3d11DeviceContext->DrawIndexed(numIndices, 0, 0);
+
 }

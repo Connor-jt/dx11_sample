@@ -19,4 +19,13 @@
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="shaders.hlsl" />
+    <FxCompile Include="injected_shaders.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="3DMaths.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>
