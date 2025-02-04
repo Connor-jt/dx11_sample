@@ -131,6 +131,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3DMaths.h" />
+    <ClInclude Include="PuesdoInjectLogic.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shaders.hlsl">

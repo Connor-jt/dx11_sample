@@ -12,6 +12,8 @@
 
 #include "3DMaths.h"
 
+#include "PuesdoInjectLogic.h"
+
 static bool global_windowDidResize = false;
 
 // Input
@@ -563,6 +565,22 @@ int main()
         d3d11DeviceContext->DrawIndexed(numIndices, 0, 0);
 
 
+        // TESTING
+        // Pointer to hold the device
+        ID3D11Device* pD3D11Device = nullptr;
+        ID3D11Device1* pD3D11Device1 = nullptr;
+
+        // Get the device
+        d3d11DeviceContext->GetDevice(&pD3D11Device);
+        if (!pD3D11Device) {
+            int _3 = 3;
+        }
+        // transform the device
+        // Get the ID3D11Device1 interface
+        if (FAILED(pD3D11Device->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void**>(&pD3D11Device1)))) {
+            int _4 = 4;
+        }
+
 
         d3d11SwapChain->Present(1, 0);
     }
@@ -576,49 +594,3 @@ d3d11DeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
 d3d11SwapChain->Present // render hook
 
 */
-
-void injected_init(ID3D11DeviceContext1* d3d11DeviceContext) {
-
-}
-
-void injected_render(ID3D11DeviceContext1* d3d11DeviceContext) {
-    // if hasn't run yet, then initialize
-    injected_init(d3d11DeviceContext);
-
-
-
-    // Calculate view matrix from camera data
-    float4x4 viewMat = translationMat(-cameraPos) * rotateYMat(-cameraYaw) * rotateXMat(-cameraPitch);
-
-    // Spin the cube
-    float4x4 modelMat = scaleMat(float3{ 0.5f, 0.5f, 0.5f }) * translationMat(float3{ 1, 1, 1 });
-
-    // Calculate model-view-projection matrix to send to shader
-    float4x4 modelViewProj = modelMat * viewMat * perspectiveMat;
-
-    // TODO: load texture to draw onto cube??
-
-    // Update constant buffer
-    D3D11_MAPPED_SUBRESOURCE mappedSubresource;
-    d3d11DeviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
-    Constants* constants = (Constants*)(mappedSubresource.pData);
-    constants->modelViewProj = modelViewProj;
-    d3d11DeviceContext->Unmap(constantBuffer, 0);
-
-    d3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    d3d11DeviceContext->IASetInputLayout(inputLayout);
-
-    d3d11DeviceContext->VSSetShader(vertexShader, nullptr, 0);
-    d3d11DeviceContext->PSSetShader(pixelShader, nullptr, 0);
-
-    d3d11DeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
-
-    d3d11DeviceContext->PSSetShaderResources(0, 1, &textureView);
-    d3d11DeviceContext->PSSetSamplers(0, 1, &samplerState);
-
-    d3d11DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
-    d3d11DeviceContext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R16_UINT, 0);
-
-    d3d11DeviceContext->DrawIndexed(numIndices, 0, 0);
-
-}

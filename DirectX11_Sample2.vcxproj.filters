@@ -27,5 +27,8 @@
     <ClInclude Include="3DMaths.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PuesdoInjectLogic.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
