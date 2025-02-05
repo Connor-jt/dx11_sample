@@ -564,23 +564,9 @@ int main()
 
         d3d11DeviceContext->DrawIndexed(numIndices, 0, 0);
 
-
-        // TESTING
-        // Pointer to hold the device
-        ID3D11Device* pD3D11Device = nullptr;
-        ID3D11Device1* pD3D11Device1 = nullptr;
-
-        // Get the device
-        d3d11DeviceContext->GetDevice(&pD3D11Device);
-        if (!pD3D11Device) {
-            int _3 = 3;
-        }
-        // transform the device
-        // Get the ID3D11Device1 interface
-        if (FAILED(pD3D11Device->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void**>(&pD3D11Device1)))) {
-            int _4 = 4;
-        }
-
+        // simulate our injected code
+        //injected_render(d3d11DeviceContext, viewMat);
+        injected_render(d3d11DeviceContext);
 
         d3d11SwapChain->Present(1, 0);
     }

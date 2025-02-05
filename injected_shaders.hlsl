@@ -3,8 +3,8 @@ cbuffer constants : register(b0){
 };
 
 struct VS_Input{
-    float3 pos : POS;
-    float2 uv : TEX;
+    float3 pos : POSITION;
+    float2 uv : TEXCOORD;
 };
 
 struct VS_Output{
