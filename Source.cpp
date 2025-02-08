@@ -63,8 +63,11 @@ bool win32CreateD3D11RenderTargets(ID3D11Device1* d3d11Device, IDXGISwapChain1* 
     return true;
 }
 
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
+    if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) return 0;
+
     LRESULT result = 0;
     switch (msg)
     {
@@ -566,7 +569,7 @@ int main()
 
         // simulate our injected code
         //injected_render(d3d11DeviceContext, viewMat);
-        injected_render(d3d11DeviceContext);
+        injected_render(d3d11DeviceContext, hwnd);
 
         d3d11SwapChain->Present(1, 0);
     }

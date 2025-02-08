@@ -1,5 +1,10 @@
 #pragma once
 
+
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_win32.h"
+#include "imgui/imgui_impl_dx11.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -29,7 +34,7 @@ struct __Constants {
     float4x4 modelViewProj;
 };
 
-void injected_init(ID3D11DeviceContext1* d3d11DeviceContext) {
+void injected_init(ID3D11DeviceContext1* d3d11DeviceContext, HWND hwnd) {
     has_injected = true;
 
     // Get the device
@@ -230,12 +235,24 @@ void injected_init(ID3D11DeviceContext1* d3d11DeviceContext) {
         windowAspectRatio = (float)windowWidth / (float)windowHeight;
     }
     __perspectiveMat = makePerspectiveMat(windowAspectRatio, degreesToRadians(84), 0.1f, 1000.f);
+
+
+
+    // Setup ImGui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    ImGui::StyleColorsDark();
+    ImGui_ImplWin32_Init(hwnd);
+    ImGui_ImplDX11_Init(__d3d11Device, d3d11DeviceContext);
 }
 
-void injected_render(ID3D11DeviceContext1* d3d11DeviceContext /*,float4x4 viewMat*/) {
+void injected_render(ID3D11DeviceContext1* d3d11DeviceContext, HWND hwnd) {
     // if hasn't run yet, then initialize
     if (!has_injected) 
-        injected_init(d3d11DeviceContext);
+        injected_init(d3d11DeviceContext, hwnd);
 
 
 
@@ -277,4 +294,17 @@ void injected_render(ID3D11DeviceContext1* d3d11DeviceContext /*,float4x4 viewMa
 
     d3d11DeviceContext->DrawIndexed(__numIndices, 0, 0);
 
+
+
+
+    ImGui_ImplDX11_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::Begin("Another Window");
+    ImGui::Text("Hello from another window!");
+    ImGui::End();
+
+    ImGui::Render();
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
