@@ -249,7 +249,7 @@ void injected_init(ID3D11DeviceContext1* d3d11DeviceContext, HWND hwnd) {
     ImGui_ImplDX11_Init(__d3d11Device, d3d11DeviceContext);
 }
 
-void injected_render(ID3D11DeviceContext1* d3d11DeviceContext, HWND hwnd) {
+void injected_render(ID3D11DeviceContext1* d3d11DeviceContext, HWND hwnd, float4x4 viewMat) {
     // if hasn't run yet, then initialize
     if (!has_injected) 
         injected_init(d3d11DeviceContext, hwnd);
@@ -260,13 +260,20 @@ void injected_render(ID3D11DeviceContext1* d3d11DeviceContext, HWND hwnd) {
     float3 __camera_position = {0.0f, 0.0f, 2.0f};
     float __camera_yaw = 0;
     float __camera_pitch = 0;
-    float4x4 viewMat = translationMat(-__camera_position) * rotateYMat(-__camera_yaw) * rotateXMat(-__camera_pitch);
+    float4x4 __viewMat = translationMat(-__camera_position) * rotateYMat(-__camera_yaw) * rotateXMat(-__camera_pitch);
 
     // Spin the cube
     //float4x4 modelMat = scaleMat(float3{ 0.5f, 0.5f, 0.5f }) * translationMat(float3{ 5, 0, 0 });
-    float4x4 modelMat = translationMat(float3{ 0, 0, -5 });
+    float4x4 __modelMat = translationMat(float3{ 0, -1, -5 });
+
+
+    RECT clientRect;
+    GetClientRect(GetActiveWindow(), &clientRect);
+    float widget_size = -5.0f / (clientRect.right - clientRect.left);
+    float4x4 modelMat = scaleMat(float3{ widget_size, widget_size, widget_size }) * translationMat(float3{ 0, 0, -5 });
 
     // Calculate model-view-projection matrix to send to shader
+    float4x4 __modelViewProj = __modelMat * viewMat * __perspectiveMat;
     float4x4 modelViewProj = modelMat * viewMat * __perspectiveMat;
 
     // TODO: load texture to draw onto cube??
@@ -275,7 +282,7 @@ void injected_render(ID3D11DeviceContext1* d3d11DeviceContext, HWND hwnd) {
     D3D11_MAPPED_SUBRESOURCE mappedSubresource;
     d3d11DeviceContext->Map(__constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
     __Constants* constants = (__Constants*)(mappedSubresource.pData);
-    constants->modelViewProj = modelViewProj;
+    constants->modelViewProj = __modelViewProj;
     d3d11DeviceContext->Unmap(__constantBuffer, 0);
 
     d3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -306,5 +313,6 @@ void injected_render(ID3D11DeviceContext1* d3d11DeviceContext, HWND hwnd) {
     ImGui::End();
 
     ImGui::Render();
-    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData(), modelViewProj);
 }

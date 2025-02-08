@@ -75,6 +75,15 @@ inline float3 operator- (float3 v) {
     return { -v.x, -v.y, -v.z };
 }
 
+inline float4x4 flipMatRowCol(float4x4 mat) {
+    return {
+        mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0],
+        mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
+        mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2],
+        mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3],
+    };
+}
+
 inline float4x4 rotateXMat(float rad) {
     float sinTheta = sinf(rad);
     float cosTheta = cosf(rad);
@@ -85,6 +94,8 @@ inline float4x4 rotateXMat(float rad) {
         0, 0, 0, 1
     };
 }
+
+
 
 inline float4x4 rotateYMat(float rad) {
     float sinTheta = sinf(rad);

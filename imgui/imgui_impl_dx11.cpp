@@ -48,6 +48,7 @@
 #ifdef _MSC_VER
 #pragma comment(lib, "d3dcompiler") // Automatically link with d3dcompiler.lib as we are using D3DCompile() below.
 #endif
+#include "../3DMaths.h"
 
 // DirectX11 data
 struct ImGui_ImplDX11_Data
@@ -85,7 +86,7 @@ static ImGui_ImplDX11_Data* ImGui_ImplDX11_GetBackendData()
 }
 
 // Functions
-static void ImGui_ImplDX11_SetupRenderState(ImDrawData* draw_data, ID3D11DeviceContext* device_ctx)
+static void ImGui_ImplDX11_SetupRenderState(ImDrawData* draw_data, ID3D11DeviceContext* device_ctx, float4x4 modelViewProj)
 {
     ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
 
@@ -105,18 +106,20 @@ static void ImGui_ImplDX11_SetupRenderState(ImDrawData* draw_data, ID3D11DeviceC
     if (device_ctx->Map(bd->pVertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource) == S_OK)
     {
         VERTEX_CONSTANT_BUFFER_DX11* constant_buffer = (VERTEX_CONSTANT_BUFFER_DX11*)mapped_resource.pData;
-        float L = draw_data->DisplayPos.x;
-        float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
-        float T = draw_data->DisplayPos.y;
-        float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
-        float mvp[4][4] =
-        {
-            { 2.0f/(R-L),   0.0f,           0.0f,       0.0f },
-            { 0.0f,         2.0f/(T-B),     0.0f,       0.0f },
-            { 0.0f,         0.0f,           0.5f,       0.0f },
-            { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
-        };
-        memcpy(&constant_buffer->mvp, mvp, sizeof(mvp));
+        //float L = draw_data->DisplayPos.x;
+        //float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
+        //float T = draw_data->DisplayPos.y;
+        //float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
+        //float mvp[4][4] =
+        //{
+        //    { 2.0f/(R-L),   0.0f,           0.0f,       0.0f },
+        //    { 0.0f,         2.0f/(T-B),     0.0f,       0.0f },
+        //    { 0.0f,         0.0f,           0.5f,       0.0f },
+        //    { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
+        //};
+        //memcpy(&constant_buffer->mvp, mvp, sizeof(mvp));
+        float4x4 inverted = flipMatRowCol(modelViewProj);
+        memcpy(&constant_buffer->mvp, &inverted, sizeof(inverted));
         device_ctx->Unmap(bd->pVertexConstantBuffer, 0);
     }
 
@@ -144,7 +147,7 @@ static void ImGui_ImplDX11_SetupRenderState(ImDrawData* draw_data, ID3D11DeviceC
 }
 
 // Render function
-void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data)
+void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data, float4x4 modelViewProj)
 {
     // Avoid rendering when minimized
     if (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f)
@@ -247,7 +250,7 @@ void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data)
     device->IAGetInputLayout(&old.InputLayout);
 
     // Setup desired DX state
-    ImGui_ImplDX11_SetupRenderState(draw_data, device);
+    ImGui_ImplDX11_SetupRenderState(draw_data, device, modelViewProj);
 
     // Setup render state structure (for callbacks and custom texture bindings)
     ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
@@ -274,15 +277,25 @@ void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data)
                 // User callback, registered via ImDrawList::AddCallback()
                 // (ImDrawCallback_ResetRenderState is a special callback value used by the user to request the renderer to reset render state.)
                 if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
-                    ImGui_ImplDX11_SetupRenderState(draw_data, device);
+                    ImGui_ImplDX11_SetupRenderState(draw_data, device, modelViewProj);
                 else
                     pcmd->UserCallback(draw_list, pcmd);
             }
             else
             {
                 // Project scissor/clipping rectangles into framebuffer space
-                ImVec2 clip_min(pcmd->ClipRect.x - clip_off.x, pcmd->ClipRect.y - clip_off.y);
-                ImVec2 clip_max(pcmd->ClipRect.z - clip_off.x, pcmd->ClipRect.w - clip_off.y);
+                //ImVec2 clip_min(pcmd->ClipRect.x - clip_off.x, pcmd->ClipRect.y - clip_off.y);
+                //ImVec2 clip_max(pcmd->ClipRect.z - clip_off.x, pcmd->ClipRect.w - clip_off.y);
+                //if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
+                //    continue;
+
+                RECT clientRect;
+                GetClientRect(GetActiveWindow(), &clientRect);
+                int windowWidth = clientRect.right - clientRect.left;
+                int windowHeight = clientRect.bottom - clientRect.top;
+
+                ImVec2 clip_min(clientRect.left - 0, clientRect.top - 0);
+                ImVec2 clip_max(clientRect.right - 0, clientRect.bottom - 0);
                 if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
                     continue;
 
