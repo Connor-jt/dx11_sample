@@ -97,6 +97,14 @@ inline float4x4 rotateXMat(float rad) {
 
 
 
+inline float4x4 nanMat(){
+    return {
+        NAN, NAN, NAN, NAN,
+        NAN, NAN, NAN, NAN,
+        NAN, NAN, NAN, NAN,
+        NAN, NAN, NAN, NAN
+    };
+}
 inline float4x4 rotateYMat(float rad) {
     float sinTheta = sinf(rad);
     float cosTheta = cosf(rad);

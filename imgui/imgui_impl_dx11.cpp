@@ -49,6 +49,7 @@
 #pragma comment(lib, "d3dcompiler") // Automatically link with d3dcompiler.lib as we are using D3DCompile() below.
 #endif
 #include "../3DMaths.h"
+#include <vector>
 
 // DirectX11 data
 struct ImGui_ImplDX11_Data
@@ -86,7 +87,7 @@ static ImGui_ImplDX11_Data* ImGui_ImplDX11_GetBackendData()
 }
 
 // Functions
-static void ImGui_ImplDX11_SetupRenderState(ImDrawData* draw_data, ID3D11DeviceContext* device_ctx, float4x4 modelViewProj)
+static void ImGui_ImplDX11_SetupRenderState(ImDrawData* draw_data, ID3D11DeviceContext* device_ctx)
 {
     ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
 
@@ -102,26 +103,26 @@ static void ImGui_ImplDX11_SetupRenderState(ImDrawData* draw_data, ID3D11DeviceC
 
     // Setup orthographic projection matrix into our constant buffer
     // Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayPos is (0,0) for single viewport apps.
-    D3D11_MAPPED_SUBRESOURCE mapped_resource;
-    if (device_ctx->Map(bd->pVertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource) == S_OK)
-    {
-        VERTEX_CONSTANT_BUFFER_DX11* constant_buffer = (VERTEX_CONSTANT_BUFFER_DX11*)mapped_resource.pData;
-        //float L = draw_data->DisplayPos.x;
-        //float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
-        //float T = draw_data->DisplayPos.y;
-        //float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
-        //float mvp[4][4] =
-        //{
-        //    { 2.0f/(R-L),   0.0f,           0.0f,       0.0f },
-        //    { 0.0f,         2.0f/(T-B),     0.0f,       0.0f },
-        //    { 0.0f,         0.0f,           0.5f,       0.0f },
-        //    { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
-        //};
-        //memcpy(&constant_buffer->mvp, mvp, sizeof(mvp));
-        float4x4 inverted = flipMatRowCol(modelViewProj);
-        memcpy(&constant_buffer->mvp, &inverted, sizeof(inverted));
-        device_ctx->Unmap(bd->pVertexConstantBuffer, 0);
-    }
+    //D3D11_MAPPED_SUBRESOURCE mapped_resource;
+    //if (device_ctx->Map(bd->pVertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource) == S_OK)
+    //{
+    //    VERTEX_CONSTANT_BUFFER_DX11* constant_buffer = (VERTEX_CONSTANT_BUFFER_DX11*)mapped_resource.pData;
+    //    //float L = draw_data->DisplayPos.x;
+    //    //float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
+    //    //float T = draw_data->DisplayPos.y;
+    //    //float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
+    //    //float mvp[4][4] =
+    //    //{
+    //    //    { 2.0f/(R-L),   0.0f,           0.0f,       0.0f },
+    //    //    { 0.0f,         2.0f/(T-B),     0.0f,       0.0f },
+    //    //    { 0.0f,         0.0f,           0.5f,       0.0f },
+    //    //    { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
+    //    //};
+    //    //memcpy(&constant_buffer->mvp, mvp, sizeof(mvp));
+    //    float4x4 inverted = flipMatRowCol(modelViewProj);
+    //    memcpy(&constant_buffer->mvp, &inverted, sizeof(inverted));
+    //    device_ctx->Unmap(bd->pVertexConstantBuffer, 0);
+    //}
 
     // Setup shader and vertex buffers
     unsigned int stride = sizeof(ImDrawVert);
@@ -142,12 +143,12 @@ static void ImGui_ImplDX11_SetupRenderState(ImDrawData* draw_data, ID3D11DeviceC
     // Setup render state
     const float blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
     device_ctx->OMSetBlendState(bd->pBlendState, blend_factor, 0xffffffff);
-    device_ctx->OMSetDepthStencilState(bd->pDepthStencilState, 0);
+    device_ctx->OMSetDepthStencilState(bd->pDepthStencilState, 0); // NOTE: this line is responsible for disabling the depth buffer (which is necessary because imgui doesn't space elements out on the z buffer)
     device_ctx->RSSetState(bd->pRasterizerState);
 }
 
 // Render function
-void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data, float4x4 modelViewProj)
+void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data, std::vector<float4x4> window_position_data)
 {
     // Avoid rendering when minimized
     if (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f)
@@ -250,7 +251,7 @@ void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data, float4x4 modelViewProj
     device->IAGetInputLayout(&old.InputLayout);
 
     // Setup desired DX state
-    ImGui_ImplDX11_SetupRenderState(draw_data, device, modelViewProj);
+    ImGui_ImplDX11_SetupRenderState(draw_data, device);
 
     // Setup render state structure (for callbacks and custom texture bindings)
     ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
@@ -265,6 +266,7 @@ void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data, float4x4 modelViewProj
     // (Because we merged all buffers into a single one, we maintain our own offset into them)
     int global_idx_offset = 0;
     int global_vtx_offset = 0;
+    int view_matrix_offset = 0;
     ImVec2 clip_off = draw_data->DisplayPos;
     for (int n = 0; n < draw_data->CmdListsCount; n++)
     {
@@ -277,36 +279,72 @@ void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data, float4x4 modelViewProj
                 // User callback, registered via ImDrawList::AddCallback()
                 // (ImDrawCallback_ResetRenderState is a special callback value used by the user to request the renderer to reset render state.)
                 if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
-                    ImGui_ImplDX11_SetupRenderState(draw_data, device, modelViewProj);
+                    ImGui_ImplDX11_SetupRenderState(draw_data, device);
                 else
                     pcmd->UserCallback(draw_list, pcmd);
             }
             else
             {
-                // Project scissor/clipping rectangles into framebuffer space
-                //ImVec2 clip_min(pcmd->ClipRect.x - clip_off.x, pcmd->ClipRect.y - clip_off.y);
-                //ImVec2 clip_max(pcmd->ClipRect.z - clip_off.x, pcmd->ClipRect.w - clip_off.y);
-                //if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
-                //    continue;
+                float4x4 current_matrix = window_position_data[view_matrix_offset];
 
-                RECT clientRect;
-                GetClientRect(GetActiveWindow(), &clientRect);
-                int windowWidth = clientRect.right - clientRect.left;
-                int windowHeight = clientRect.bottom - clientRect.top;
+                D3D11_MAPPED_SUBRESOURCE mapped_resource;
+                if (device->Map(bd->pVertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource) == S_OK)
+                {
+                    VERTEX_CONSTANT_BUFFER_DX11* constant_buffer = (VERTEX_CONSTANT_BUFFER_DX11*)mapped_resource.pData;
+                    // if matrix is nan, then revert to imgui default
+                    if (isnan(current_matrix.m[0][0])) {
+                        float L = draw_data->DisplayPos.x;
+                        float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
+                        float T = draw_data->DisplayPos.y;
+                        float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
+                        float mvp[4][4] = {
+                            { 2.0f/(R-L),   0.0f,           0.0f,       0.0f },
+                            { 0.0f,         2.0f/(T-B),     0.0f,       0.0f },
+                            { 0.0f,         0.0f,           0.5f,       0.0f },
+                            { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
+                        };
+                        memcpy(&constant_buffer->mvp, mvp, sizeof(mvp));
+                        // Project scissor/clipping rectangles into framebuffer space
+                        ImVec2 clip_min(pcmd->ClipRect.x - clip_off.x, pcmd->ClipRect.y - clip_off.y);
+                        ImVec2 clip_max(pcmd->ClipRect.z - clip_off.x, pcmd->ClipRect.w - clip_off.y);
+                        if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
+                            continue;
+                        // Apply scissor/clipping rectangle
+                        const D3D11_RECT r = { (LONG)clip_min.x, (LONG)clip_min.y, (LONG)clip_max.x, (LONG)clip_max.y };
+                        device->RSSetScissorRects(1, &r);
 
-                ImVec2 clip_min(clientRect.left - 0, clientRect.top - 0);
-                ImVec2 clip_max(clientRect.right - 0, clientRect.bottom - 0);
-                if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
-                    continue;
+                    } else {
 
-                // Apply scissor/clipping rectangle
-                const D3D11_RECT r = { (LONG)clip_min.x, (LONG)clip_min.y, (LONG)clip_max.x, (LONG)clip_max.y };
-                device->RSSetScissorRects(1, &r);
+                        float4x4 inverted = flipMatRowCol(current_matrix);
+                        memcpy(&constant_buffer->mvp, &inverted, sizeof(inverted));
+
+                        RECT clientRect;
+                        GetClientRect(GetActiveWindow(), &clientRect);
+                        //int windowWidth = clientRect.right - clientRect.left;
+                        //int windowHeight = clientRect.bottom - clientRect.top;
+
+                        ImVec2 clip_min(clientRect.left, clientRect.top);
+                        ImVec2 clip_max(clientRect.right, clientRect.bottom);
+                        if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
+                            continue;
+
+                        // Apply scissor/clipping rectangle
+                        const D3D11_RECT r = { (LONG)clip_min.x, (LONG)clip_min.y, (LONG)clip_max.x, (LONG)clip_max.y };
+                        device->RSSetScissorRects(1, &r);
+                    }
+
+                    device->Unmap(bd->pVertexConstantBuffer, 0);
+                }
+
 
                 // Bind texture, Draw
                 ID3D11ShaderResourceView* texture_srv = (ID3D11ShaderResourceView*)pcmd->GetTexID();
                 device->PSSetShaderResources(0, 1, &texture_srv);
                 device->DrawIndexed(pcmd->ElemCount, pcmd->IdxOffset + global_idx_offset, pcmd->VtxOffset + global_vtx_offset);
+
+                // increment view matrix hack index
+                if (view_matrix_offset < window_position_data.size() - 1)
+                    view_matrix_offset++;
             }
         }
         global_idx_offset += draw_list->IdxBuffer.Size;

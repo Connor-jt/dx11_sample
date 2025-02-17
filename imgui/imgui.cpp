@@ -5697,10 +5697,12 @@ void ImGui::Render()
     {
         InitViewportDrawData(viewport);
         if (viewport->BgFgDrawLists[0] != NULL)
+            // NOTE: doesn't seem to be relevant
             AddDrawListToDrawDataEx(&viewport->DrawDataP, viewport->DrawDataBuilder.Layers[0], GetBackgroundDrawList(viewport));
     }
 
     // Draw modal/window whitening backgrounds
+    // NOTE: seems to be the main instances where draws are constructed
     RenderDimmedBackgrounds();
 
     // Add ImDrawList to render
@@ -5729,6 +5731,7 @@ void ImGui::Render()
 
         // Add foreground ImDrawList (for each active viewport)
         if (viewport->BgFgDrawLists[1] != NULL)
+            // NOTE: doesn't seem to be relevant
             AddDrawListToDrawDataEx(&viewport->DrawDataP, viewport->DrawDataBuilder.Layers[0], GetForegroundDrawList(viewport));
 
         // We call _PopUnusedDrawCmd() last thing, as RenderDimmedBackgrounds() rely on a valid command being there (especially in docking branch).

@@ -569,7 +569,7 @@ int main()
 
         // simulate our injected code
         //injected_render(d3d11DeviceContext, viewMat);
-        injected_render(d3d11DeviceContext, hwnd, viewMat);
+        injected_render(d3d11DeviceContext, hwnd, viewMat, &cameraPos, &cameraYaw, &cameraPitch);
 
         d3d11SwapChain->Present(1, 0);
     }
